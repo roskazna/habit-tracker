@@ -105,6 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Неизвестная ошибка AI.";
+    console.error("habit-tracker ai api error:", error);
     res.status(500).send(message);
   }
 }

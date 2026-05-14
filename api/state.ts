@@ -19,7 +19,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await ensureStateTable();
 
     if (req.method === "GET") {
-      const result = await getPool().query(
+      const pool = await getPool();
+      const result = await pool.query(
         "select payload, updated_at from habit_tracker_state where id = $1",
         [STATE_ID]
       );
@@ -49,7 +50,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       updatedAt: now
     };
 
-    const result = await getPool().query(
+    const pool = await getPool();
+    const result = await pool.query(
       `
         insert into habit_tracker_state (id, payload, updated_at)
         values ($1, $2::jsonb, now())
@@ -66,6 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Неизвестная ошибка.";
+    console.error("habit-tracker state api error:", error);
     res.status(500).send(message);
   }
 }

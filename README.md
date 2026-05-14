@@ -67,6 +67,24 @@ create table if not exists habit_tracker_state (
 4. Output directory: `dist`.
 5. После деплоя откройте сайт на компьютере и телефоне, введите личный ключ и нажмите синхронизацию.
 
+## Диагностика Vercel API
+
+Если при синхронизации появляется `FUNCTION_INVOCATION_FAILED`, откройте логи проекта:
+
+1. Vercel Dashboard -> ваш проект -> Deployments.
+2. Выберите последний deployment.
+3. Откройте Functions или Runtime Logs.
+4. Найдите строку `habit-tracker state api error`.
+
+Можно проверить API из PowerShell:
+
+```powershell
+$key = "ваш APP_ACCESS_KEY"
+Invoke-RestMethod -Uri "https://ваш-домен.vercel.app/api/health" -Headers @{ "x-tracker-key" = $key }
+```
+
+Ответ `ok: true` означает, что ключ, БД и таблица доступны. Если `ok: false`, поле `error` покажет причину.
+
 ## Безопасность
 
 OpenAI API key не используется в браузере. Клиент обращается только к `/api/ai`, а ключ хранится в переменных окружения хостинга.

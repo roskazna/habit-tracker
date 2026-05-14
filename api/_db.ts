@@ -1,8 +1,27 @@
-import { Pool } from "pg";
+import type { Pool as PgPool, PoolConfig } from "pg";
 
-let pool: Pool | undefined;
+type PoolConstructor = new (config: PoolConfig) => PgPool;
 
-export const getPool = () => {
+let pool: PgPool | undefined;
+
+const loadPoolConstructor = async (): Promise<PoolConstructor> => {
+  const pgModule = (await import("pg")) as unknown as {
+    Pool?: PoolConstructor;
+    default?: {
+      Pool?: PoolConstructor;
+    };
+  };
+
+  const Pool = pgModule.Pool ?? pgModule.default?.Pool;
+
+  if (!Pool) {
+    throw new Error("Не удалось загрузить PostgreSQL клиент pg.");
+  }
+
+  return Pool;
+};
+
+export const getPool = async () => {
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
@@ -10,6 +29,8 @@ export const getPool = () => {
   }
 
   if (!pool) {
+    const Pool = await loadPoolConstructor();
+
     pool = new Pool({
       connectionString,
       ssl: connectionString.includes("sslmode=require")
@@ -22,7 +43,9 @@ export const getPool = () => {
 };
 
 export const ensureStateTable = async () => {
-  await getPool().query(`
+  const pool = await getPool();
+
+  await pool.query(`
     create table if not exists habit_tracker_state (
       id text primary key,
       payload jsonb not null,
