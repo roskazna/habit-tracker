@@ -1,6 +1,24 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import OpenAI from "openai";
-import { authorize } from "./_auth";
+
+const authorize = (req: VercelRequest, res: VercelResponse) => {
+  const expected = process.env.APP_ACCESS_KEY;
+
+  if (!expected) {
+    res.status(500).send("APP_ACCESS_KEY не настроен на сервере.");
+    return false;
+  }
+
+  const incoming = req.headers["x-tracker-key"];
+  const value = Array.isArray(incoming) ? incoming[0] : incoming;
+
+  if (value === expected) {
+    return true;
+  }
+
+  res.status(401).send("Неверный личный ключ доступа.");
+  return false;
+};
 
 const recommendationSchema = {
   type: "object",

@@ -1,8 +1,90 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { authorize } from "./_auth";
-import { ensureStateTable, getPool } from "./_db";
 
 const STATE_ID = "personal";
+
+type QueryResult = {
+  rowCount: number | null;
+  rows: Array<Record<string, unknown>>;
+};
+
+type QueryablePool = {
+  query: (sql: string, params?: unknown[]) => Promise<QueryResult>;
+};
+
+type PoolConstructor = new (config: {
+  connectionString: string;
+  ssl?: { rejectUnauthorized: boolean };
+}) => QueryablePool;
+
+let pool: QueryablePool | undefined;
+
+const authorize = (req: VercelRequest, res: VercelResponse) => {
+  const expected = process.env.APP_ACCESS_KEY;
+
+  if (!expected) {
+    res.status(500).send("APP_ACCESS_KEY не настроен на сервере.");
+    return false;
+  }
+
+  const incoming = req.headers["x-tracker-key"];
+  const value = Array.isArray(incoming) ? incoming[0] : incoming;
+
+  if (value === expected) {
+    return true;
+  }
+
+  res.status(401).send("Неверный личный ключ доступа.");
+  return false;
+};
+
+const loadPoolConstructor = async (): Promise<PoolConstructor> => {
+  const pgModule = (await import("pg")) as unknown as {
+    Pool?: PoolConstructor;
+    default?: {
+      Pool?: PoolConstructor;
+    };
+  };
+
+  const Pool = pgModule.Pool ?? pgModule.default?.Pool;
+
+  if (!Pool) {
+    throw new Error("Не удалось загрузить PostgreSQL клиент pg.");
+  }
+
+  return Pool;
+};
+
+const getPool = async () => {
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    throw new Error("DATABASE_URL не настроен.");
+  }
+
+  if (!pool) {
+    const Pool = await loadPoolConstructor();
+    pool = new Pool({
+      connectionString,
+      ssl: connectionString.includes("sslmode=require")
+        ? { rejectUnauthorized: false }
+        : undefined
+    });
+  }
+
+  return pool;
+};
+
+const ensureStateTable = async () => {
+  const pool = await getPool();
+
+  await pool.query(`
+    create table if not exists habit_tracker_state (
+      id text primary key,
+      payload jsonb not null,
+      updated_at timestamptz not null default now()
+    )
+  `);
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!authorize(req, res)) {
