@@ -141,12 +141,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         generationConfig: {
           temperature: 0.35,
           maxOutputTokens: 2048,
-          responseFormat: {
-            text: {
-              mimeType: "application/json",
-              schema: recommendationSchema
-            }
-          }
+          responseMimeType: "application/json",
+          responseJsonSchema: recommendationSchema
         }
       })
     });
