@@ -15,6 +15,25 @@ type GeminiGenerateContentResponse = {
   };
 };
 
+type TrackerState = {
+  habits?: Array<{
+    id: string;
+    title: string;
+    category?: string;
+    enabled?: boolean;
+  }>;
+  habitLogs?: Record<string, Record<string, boolean>>;
+  tasks?: Array<{
+    title: string;
+    category?: string;
+    priority?: string;
+    dueDate?: string;
+    repeat?: string;
+    completed?: boolean;
+    notes?: string;
+  }>;
+};
+
 const authorize = (req: VercelRequest, res: VercelResponse) => {
   const expected = process.env.APP_ACCESS_KEY;
 
@@ -66,7 +85,91 @@ const recommendationSchema = {
 } as const;
 
 const systemPrompt =
-  "Ты персональный AI-коуч продуктивности для русскоязычного мужчины 45 лет с сидячим образом жизни. Учитывай привычки, задачи, пропуски и контекст здоровья, но не ставь диагнозы, не назначай лечение и не меняй лекарства. Давай конкретные, осторожные, выполнимые рекомендации на русском языке. Ответ должен быть только валидным JSON по заданной схеме.";
+  "Ты AI-коуч продуктивности. Русский язык. Мужчина 45 лет, сидячий образ жизни. Не ставь диагнозы, не назначай лечение и не меняй лекарства. Верни только JSON. Summary до 120 символов. Ровно 3 рекомендации. В каждом поле title/reason/action до 110 символов.";
+
+const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
+
+const recentDateKeys = (days: number) => {
+  const keys: string[] = [];
+  const cursor = new Date();
+  cursor.setHours(12, 0, 0, 0);
+
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const date = new Date(cursor);
+    date.setDate(cursor.getDate() - index);
+    keys.push(toDateKey(date));
+  }
+
+  return keys;
+};
+
+const compactStateForAi = (state: TrackerState) => {
+  const keys = recentDateKeys(14);
+  const habits = (state.habits ?? [])
+    .filter((habit) => habit.enabled !== false)
+    .map((habit) => ({
+      id: habit.id,
+      title: habit.title,
+      category: habit.category
+    }));
+
+  const habitLogs = Object.fromEntries(
+    keys.map((key) => [key, state.habitLogs?.[key] ?? {}])
+  );
+
+  const tasks = (state.tasks ?? [])
+    .filter((task) => !task.completed)
+    .slice(0, 12)
+    .map((task) => ({
+      title: task.title,
+      category: task.category,
+      priority: task.priority,
+      dueDate: task.dueDate,
+      repeat: task.repeat,
+      notes: task.notes ? task.notes.slice(0, 140) : ""
+    }));
+
+  return {
+    today: toDateKey(new Date()),
+    habits,
+    habitLogs,
+    activeTasks: tasks
+  };
+};
+
+const fallbackInsight = (state: TrackerState) => {
+  const compact = compactStateForAi(state);
+  const todayLog = compact.habitLogs[compact.today] ?? {};
+  const completedToday = compact.habits.filter((habit) => todayLog[habit.id]).length;
+  const total = compact.habits.length;
+  const percent = total ? Math.round((completedToday / total) * 100) : 0;
+  const highTasks = compact.activeTasks.filter((task) => task.priority === "high").length;
+
+  return {
+    summary: `AI ответ был обрезан. Локальная оценка: привычки сегодня ${percent}%, активных задач ${compact.activeTasks.length}.`,
+    recommendations: [
+      {
+        title: "Сузить фокус дня",
+        reason: `Сегодня выполнено ${completedToday} из ${total} привычек.`,
+        action: "Выберите 3 обязательных действия: вода, движение и один рабочий результат.",
+        priority: "сегодня" as const
+      },
+      {
+        title: "Разгрузить высокий приоритет",
+        reason: `Активных задач с высоким приоритетом: ${highTasks}.`,
+        action: "Оставьте главным один рабочий пункт, остальное перенесите или понизьте.",
+        priority: "сегодня" as const
+      },
+      {
+        title: "Поддержать тело после сидения",
+        reason: "Сидячий день требует коротких регулярных компенсаций.",
+        action: "Сделайте 10 минут ходьбы или мягкую связку приседаний без отказа.",
+        priority: "на неделе" as const
+      }
+    ],
+    focusHabitIds: compact.habits.slice(0, 3).map((habit) => habit.id)
+  };
+};
 
 const parseJsonText = (text: string) => {
   const trimmed = text.trim();
@@ -107,7 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const state = req.body?.state;
+    const state = req.body?.state as TrackerState | undefined;
 
     if (!state || typeof state !== "object") {
       res.status(400).send("Ожидался JSON вида { state }.");
@@ -131,8 +234,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             parts: [
               {
                 text: `${systemPrompt}\n\nДанные пользователя:\n${JSON.stringify({
-                  today: new Date().toISOString().slice(0, 10),
-                  state
+                  compact: compactStateForAi(state)
                 })}`
               }
             ]
@@ -140,7 +242,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ],
         generationConfig: {
           temperature: 0.35,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 4096,
           responseMimeType: "application/json",
           responseJsonSchema: recommendationSchema
         }
@@ -175,11 +277,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       parsed = parseJsonText(text);
     } catch (parseError) {
       console.error("habit-tracker ai invalid json:", text);
-      throw new Error(
-        `Gemini вернул невалидный JSON${
-          candidate?.finishReason ? `, причина: ${candidate.finishReason}` : ""
-        }. Повторите запрос или проверьте модель GEMINI_MODEL.`
-      );
+      parsed = fallbackInsight(state);
     }
 
     res.status(200).json({
