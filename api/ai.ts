@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 type GeminiGenerateContentResponse = {
   candidates?: Array<{
+    finishReason?: string;
     content?: {
       parts?: Array<{
         text?: string;
@@ -139,9 +140,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ],
         generationConfig: {
           temperature: 0.35,
-          maxOutputTokens: 900,
-          responseMimeType: "application/json",
-          responseJsonSchema: recommendationSchema
+          maxOutputTokens: 2048,
+          responseFormat: {
+            text: {
+              mimeType: "application/json",
+              schema: recommendationSchema
+            }
+          }
         }
       })
     });
@@ -154,13 +159,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
+    const candidate = payload.candidates?.[0];
+    const text = candidate?.content?.parts
+      ?.map((part) => part.text ?? "")
+      .join("")
+      .trim();
 
     if (!text) {
-      throw new Error("Gemini API вернул пустой ответ.");
+      throw new Error(
+        `Gemini API вернул пустой ответ${
+          candidate?.finishReason ? `, причина: ${candidate.finishReason}` : ""
+        }.`
+      );
     }
 
-    const parsed = parseJsonText(text);
+    let parsed: ReturnType<typeof parseJsonText>;
+
+    try {
+      parsed = parseJsonText(text);
+    } catch (parseError) {
+      console.error("habit-tracker ai invalid json:", text);
+      throw new Error(
+        `Gemini вернул невалидный JSON${
+          candidate?.finishReason ? `, причина: ${candidate.finishReason}` : ""
+        }. Повторите запрос или проверьте модель GEMINI_MODEL.`
+      );
+    }
 
     res.status(200).json({
       insight: {
