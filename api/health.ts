@@ -65,8 +65,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const checks = {
     appAccessKey: Boolean(process.env.APP_ACCESS_KEY),
     databaseUrl: Boolean(process.env.DATABASE_URL),
-    openAiKey: Boolean(process.env.OPENAI_API_KEY),
-    openAiModel: process.env.OPENAI_MODEL || "gpt-5.5"
+    geminiKey: Boolean(process.env.GEMINI_API_KEY),
+    geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash"
   };
 
   try {

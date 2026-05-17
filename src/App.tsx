@@ -874,7 +874,7 @@ function AiPanel({ state, accessKey, onChange }: AiPanelProps) {
       </div>
       <p className="ai-summary">
         {state.aiInsight?.summary ??
-          "Пока показаны локальные рекомендации. Для настоящего AI укажите ключ доступа и настройте OPENAI_API_KEY на сервере."}
+          "Пока показаны локальные рекомендации. Для настоящего AI укажите ключ доступа и настройте GEMINI_API_KEY на сервере."}
       </p>
       <div className="recommendation-list">
         {items.map((item) => (

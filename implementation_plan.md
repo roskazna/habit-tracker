@@ -11,7 +11,7 @@
 - Иконки: lucide-react.
 - Хранение локально: localStorage для автономной работы.
 - Синхронизация: serverless endpoint `/api/state` + PostgreSQL.
-- AI: serverless endpoint `/api/ai` + OpenAI Responses API.
+- AI: serverless endpoint `/api/ai` + Gemini generateContent API.
 - Доступ без аккаунта: общий личный ключ `APP_ACCESS_KEY`, который вводится в приложении на каждом устройстве.
 - Дизайн: темный строгий дашборд, русский интерфейс.
 
@@ -39,7 +39,7 @@
   - столбчатый график за неделю;
   - линейный тренд за месяц.
 - Локальные рекомендации как fallback.
-- Настоящие AI-рекомендации через `/api/ai`, когда настроен `OPENAI_API_KEY`.
+- Настоящие AI-рекомендации через `/api/ai`, когда настроен `GEMINI_API_KEY`.
 - Синхронизация состояния через `/api/state`, когда настроен `DATABASE_URL`.
 - Экспорт JSON-копии данных.
 
@@ -76,8 +76,8 @@
 ```env
 APP_ACCESS_KEY=long-random-personal-secret
 DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-5.5
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ## Следующий технический шаг

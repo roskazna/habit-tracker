@@ -1,5 +1,18 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import OpenAI from "openai";
+
+type GeminiGenerateContentResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+  error?: {
+    message?: string;
+    status?: string;
+  };
+};
 
 const authorize = (req: VercelRequest, res: VercelResponse) => {
   const expected = process.env.APP_ACCESS_KEY;
@@ -22,7 +35,6 @@ const authorize = (req: VercelRequest, res: VercelResponse) => {
 
 const recommendationSchema = {
   type: "object",
-  additionalProperties: false,
   properties: {
     summary: { type: "string" },
     recommendations: {
@@ -31,7 +43,6 @@ const recommendationSchema = {
       maxItems: 5,
       items: {
         type: "object",
-        additionalProperties: false,
         properties: {
           title: { type: "string" },
           reason: { type: "string" },
@@ -53,6 +64,29 @@ const recommendationSchema = {
   required: ["summary", "recommendations", "focusHabitIds"]
 } as const;
 
+const systemPrompt =
+  "Ты персональный AI-коуч продуктивности для русскоязычного мужчины 45 лет с сидячим образом жизни. Учитывай привычки, задачи, пропуски и контекст здоровья, но не ставь диагнозы, не назначай лечение и не меняй лекарства. Давай конкретные, осторожные, выполнимые рекомендации на русском языке. Ответ должен быть только валидным JSON по заданной схеме.";
+
+const parseJsonText = (text: string) => {
+  const trimmed = text.trim();
+  const withoutFence = trimmed
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  return JSON.parse(withoutFence) as {
+    summary: string;
+    recommendations: Array<{
+      title: string;
+      reason: string;
+      action: string;
+      priority: "сегодня" | "на неделе" | "наблюдать";
+    }>;
+    focusHabitIds: string[];
+  };
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!authorize(req, res)) {
     return;
@@ -64,8 +98,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    res.status(500).send("OPENAI_API_KEY не настроен.");
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    res.status(500).send("GEMINI_API_KEY не настроен.");
     return;
   }
 
@@ -77,43 +113,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+      model
+    )}:generateContent`;
 
-    const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5.5",
-      reasoning: {
-        effort: "low"
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
       },
-      instructions:
-        "Ты персональный AI-коуч продуктивности для русскоязычного мужчины 45 лет с сидячим образом жизни. Учитывай привычки, задачи, пропуски и контекст здоровья, но не ставь диагнозы, не назначай лечение и не меняй лекарства. Давай конкретные, осторожные, выполнимые рекомендации на русском языке.",
-      input: JSON.stringify({
-        today: new Date().toISOString().slice(0, 10),
-        state
-      }),
-      text: {
-        verbosity: "low",
-        format: {
-          type: "json_schema",
-          name: "productivity_recommendations",
-          strict: true,
-          schema: recommendationSchema
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${systemPrompt}\n\nДанные пользователя:\n${JSON.stringify({
+                  today: new Date().toISOString().slice(0, 10),
+                  state
+                })}`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.35,
+          maxOutputTokens: 900,
+          responseMimeType: "application/json",
+          responseJsonSchema: recommendationSchema
         }
-      }
+      })
     });
 
-    const text = response.output_text;
-    const parsed = JSON.parse(text) as {
-      summary: string;
-      recommendations: Array<{
-        title: string;
-        reason: string;
-        action: string;
-        priority: "сегодня" | "на неделе" | "наблюдать";
-      }>;
-      focusHabitIds: string[];
-    };
+    const payload = (await response.json()) as GeminiGenerateContentResponse;
+
+    if (!response.ok) {
+      throw new Error(
+        payload.error?.message || `Gemini API вернул HTTP ${response.status}.`
+      );
+    }
+
+    const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      throw new Error("Gemini API вернул пустой ответ.");
+    }
+
+    const parsed = parseJsonText(text);
 
     res.status(200).json({
       insight: {
