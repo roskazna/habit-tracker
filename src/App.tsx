@@ -40,10 +40,11 @@ import {
 import { habitCategories, quotes } from "./data/defaults";
 import { addDays, addMonths, formatDateLong, formatTime, getDateKey } from "./lib/date";
 import { buildLocalRecommendations, getHabitCompletion, getMonthlyHabitSeries, getWeeklyHabitSeries } from "./lib/stats";
-import { exportState, loadAccessKey, loadState, saveAccessKey, saveState } from "./lib/storage";
+import { exportState, loadAccessKey, loadState, normalizeState, saveAccessKey, saveState } from "./lib/storage";
 import { pullRemoteState, pushRemoteState, requestAiInsight } from "./lib/sync";
 import type {
   AppState,
+  BloodPressureEntry,
   Habit,
   HabitCategory,
   Task,
@@ -90,6 +91,9 @@ const touch = (state: AppState): AppState => ({
   ...state,
   updatedAt: new Date().toISOString()
 });
+
+const getTimeValue = (date = new Date()) =>
+  `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 
 const getNextDueDate = (task: Task) => {
   const base = task.dueDate || getDateKey();
@@ -718,6 +722,225 @@ function TasksPanel({ state, filters, onChange, onFiltersChange }: TasksPanelPro
   );
 }
 
+interface BloodPressurePanelProps {
+  state: AppState;
+  onChange: (updater: (state: AppState) => AppState) => void;
+}
+
+function BloodPressurePanel({ state, onChange }: BloodPressurePanelProps) {
+  const [draft, setDraft] = useState({
+    date: getDateKey(),
+    time: getTimeValue(),
+    systolic: "",
+    diastolic: "",
+    pulse: "",
+    note: ""
+  });
+
+  const entries = useMemo(
+    () =>
+      [...(state.bloodPressureLogs ?? [])].sort(
+        (a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`)
+      ),
+    [state.bloodPressureLogs]
+  );
+  const chartEntries = [...entries]
+    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
+    .slice(-20);
+  const latest = entries[0];
+
+  const addEntry = () => {
+    const systolic = Number(draft.systolic);
+    const diastolic = Number(draft.diastolic);
+    const pulse = draft.pulse ? Number(draft.pulse) : undefined;
+
+    if (!Number.isFinite(systolic) || !Number.isFinite(diastolic)) {
+      return;
+    }
+
+    const entry: BloodPressureEntry = {
+      id: createId(),
+      date: draft.date || getDateKey(),
+      time: draft.time || getTimeValue(),
+      systolic,
+      diastolic,
+      pulse: Number.isFinite(pulse) ? pulse : undefined,
+      note: draft.note.trim(),
+      recordedAt: new Date().toISOString()
+    };
+
+    onChange((current) =>
+      touch({
+        ...current,
+        bloodPressureLogs: [...(current.bloodPressureLogs ?? []), entry]
+      })
+    );
+
+    setDraft({
+      date: getDateKey(),
+      time: getTimeValue(),
+      systolic: "",
+      diastolic: "",
+      pulse: "",
+      note: ""
+    });
+  };
+
+  const deleteEntry = (entryId: string) => {
+    onChange((current) =>
+      touch({
+        ...current,
+        bloodPressureLogs: (current.bloodPressureLogs ?? []).filter(
+          (entry) => entry.id !== entryId
+        )
+      })
+    );
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: "#c9d4e5",
+          boxWidth: 10,
+          boxHeight: 10
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: "#8b98aa" },
+        grid: { color: "rgba(139, 152, 170, 0.12)" }
+      },
+      y: {
+        ticks: { color: "#8b98aa" },
+        grid: { color: "rgba(139, 152, 170, 0.12)" },
+        min: 40,
+        suggestedMax: 180
+      }
+    }
+  } as const;
+
+  return (
+    <section className="panel blood-pressure-panel">
+      <div className="section-heading">
+        <div>
+          <div className="panel-title">
+            <HeartPulse size={18} />
+            <span>Давление</span>
+          </div>
+          <strong>{latest ? `${latest.systolic}/${latest.diastolic}` : "Нет записей"}</strong>
+        </div>
+        {latest?.pulse ? <span className="metric-pill">Пульс {latest.pulse}</span> : null}
+      </div>
+
+      <div className="pressure-form">
+        <input
+          type="date"
+          value={draft.date}
+          onChange={(event) => setDraft({ ...draft, date: event.target.value })}
+          aria-label="Дата измерения давления"
+        />
+        <input
+          type="time"
+          value={draft.time}
+          onChange={(event) => setDraft({ ...draft, time: event.target.value })}
+          aria-label="Время измерения давления"
+        />
+        <input
+          inputMode="numeric"
+          min="70"
+          max="240"
+          placeholder="Сист."
+          type="number"
+          value={draft.systolic}
+          onChange={(event) => setDraft({ ...draft, systolic: event.target.value })}
+        />
+        <input
+          inputMode="numeric"
+          min="40"
+          max="160"
+          placeholder="Диаст."
+          type="number"
+          value={draft.diastolic}
+          onChange={(event) => setDraft({ ...draft, diastolic: event.target.value })}
+        />
+        <input
+          inputMode="numeric"
+          min="35"
+          max="180"
+          placeholder="Пульс"
+          type="number"
+          value={draft.pulse}
+          onChange={(event) => setDraft({ ...draft, pulse: event.target.value })}
+        />
+        <input
+          placeholder="Заметка"
+          value={draft.note}
+          onChange={(event) => setDraft({ ...draft, note: event.target.value })}
+        />
+        <button className="primary-button" type="button" onClick={addEntry}>
+          <Save size={18} />
+          <span>Записать</span>
+        </button>
+      </div>
+
+      <div className="pressure-layout">
+        <div className="chart-card pressure-chart-card">
+          <strong>График последних измерений</strong>
+          <div className="chart-box">
+            <Line
+              data={{
+                labels: chartEntries.map((entry) => `${entry.date.slice(5)} ${entry.time}`),
+                datasets: [
+                  {
+                    label: "Систолическое",
+                    data: chartEntries.map((entry) => entry.systolic),
+                    borderColor: "#f87171",
+                    backgroundColor: "rgba(248, 113, 113, 0.12)",
+                    tension: 0.28,
+                    pointRadius: 3
+                  },
+                  {
+                    label: "Диастолическое",
+                    data: chartEntries.map((entry) => entry.diastolic),
+                    borderColor: "#60a5fa",
+                    backgroundColor: "rgba(96, 165, 250, 0.12)",
+                    tension: 0.28,
+                    pointRadius: 3
+                  }
+                ]
+              }}
+              options={chartOptions}
+            />
+          </div>
+        </div>
+
+        <div className="pressure-list">
+          {entries.slice(0, 6).map((entry) => (
+            <article className="pressure-row" key={entry.id}>
+              <div>
+                <strong>{entry.systolic}/{entry.diastolic}</strong>
+                <small>
+                  {entry.date} · {entry.time}
+                  {entry.pulse ? ` · пульс ${entry.pulse}` : ""}
+                </small>
+                {entry.note ? <p>{entry.note}</p> : null}
+              </div>
+              <button className="icon-button danger" type="button" title="Удалить" onClick={() => deleteEntry(entry.id)}>
+                <Trash2 size={16} />
+              </button>
+            </article>
+          ))}
+          {!entries.length ? <small className="muted">Записей давления пока нет.</small> : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ChartsPanel({ state }: { state: AppState }) {
   const today = getHabitCompletion(state);
   const week = getWeeklyHabitSeries(state);
@@ -873,8 +1096,7 @@ function AiPanel({ state, accessKey, onChange }: AiPanelProps) {
         </button>
       </div>
       <p className="ai-summary">
-        {state.aiInsight?.summary ??
-          "Пока показаны локальные рекомендации. Для настоящего AI укажите ключ доступа и настройте GEMINI_API_KEY на сервере."}
+        {state.aiInsight?.summary ?? "Рекомендации обновятся после первого успешного AI-запроса."}
       </p>
       <div className="recommendation-list">
         {items.map((item) => (
@@ -923,7 +1145,7 @@ function SyncPanel({
       const localTime = new Date(state.updatedAt).getTime();
 
       if (Number.isFinite(remoteTime) && remoteTime > localTime) {
-        onStateChange(() => remote.state);
+        onStateChange(() => normalizeState(remote.state));
         onSyncMessage("Загружена более свежая версия с сервера.");
       } else {
         await pushRemoteState(state, accessKey);
@@ -1038,6 +1260,7 @@ export default function App() {
         <QuoteWidget />
         <HabitsPanel state={state} todayKey={todayKey} onChange={updateState} />
         <TasksPanel state={state} filters={filters} onChange={updateState} onFiltersChange={setFilters} />
+        <BloodPressurePanel state={state} onChange={updateState} />
         <ChartsPanel state={state} />
         <AiPanel state={state} accessKey={accessKey} onChange={updateState} />
         <SyncPanel

@@ -23,6 +23,13 @@ type TrackerState = {
     enabled?: boolean;
   }>;
   habitLogs?: Record<string, Record<string, boolean>>;
+  bloodPressureLogs?: Array<{
+    date: string;
+    time: string;
+    systolic: number;
+    diastolic: number;
+    pulse?: number;
+  }>;
   tasks?: Array<{
     title: string;
     category?: string;
@@ -133,6 +140,7 @@ const compactStateForAi = (state: TrackerState) => {
     today: toDateKey(new Date()),
     habits,
     habitLogs,
+    bloodPressure: (state.bloodPressureLogs ?? []).slice(-20),
     activeTasks: tasks
   };
 };

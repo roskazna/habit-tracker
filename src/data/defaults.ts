@@ -37,10 +37,20 @@ export const defaultHabits: Habit[] = [
     title: "Измерить давление",
     category: "Утро",
     cue: "До кофе и активных дел",
-    target: "Записать показатель в заметки к дню",
+    target: "Записать показатель в журнал давления",
     healthContext: "Контроль гипертонии",
     enabled: true,
     order: 20
+  },
+  {
+    id: "morning-teeth",
+    title: "Почистить зубы",
+    category: "Утро",
+    cue: "После завтрака",
+    target: "2 минуты, не спеша",
+    healthContext: "Ежедневная гигиена",
+    enabled: true,
+    order: 25
   },
   {
     id: "morning-mobility",
@@ -143,6 +153,16 @@ export const defaultHabits: Habit[] = [
     order: 120
   },
   {
+    id: "learning-video",
+    title: "Посмотреть 1 учебное видео",
+    category: "Вечер",
+    cue: "После основных дел",
+    target: "10-25 минут с одной короткой заметкой",
+    healthContext: "Развитие без бесконечной ленты",
+    enabled: true,
+    order: 125
+  },
+  {
     id: "screen-off",
     title: "Экранный финиш",
     category: "Вечер",
@@ -151,6 +171,16 @@ export const defaultHabits: Habit[] = [
     healthContext: "Сон и восстановление",
     enabled: true,
     order: 130
+  },
+  {
+    id: "evening-teeth",
+    title: "Почистить зубы",
+    category: "Вечер",
+    cue: "Перед сном",
+    target: "2 минуты, после последнего приема пищи",
+    healthContext: "Ежедневная гигиена",
+    enabled: true,
+    order: 140
   }
 ];
 
@@ -158,6 +188,7 @@ export const createInitialState = (): AppState => ({
   version: 1,
   habits: defaultHabits,
   habitLogs: {},
+  bloodPressureLogs: [],
   tasks: [
     {
       id: "task-first-review",

@@ -35,6 +35,17 @@ export interface Task {
   completedAt?: string;
 }
 
+export interface BloodPressureEntry {
+  id: string;
+  date: string;
+  time: string;
+  systolic: number;
+  diastolic: number;
+  pulse?: number;
+  note?: string;
+  recordedAt: string;
+}
+
 export interface AiRecommendation {
   title: string;
   reason: string;
@@ -53,6 +64,7 @@ export interface AppState {
   version: number;
   habits: Habit[];
   habitLogs: Record<string, Record<string, boolean>>;
+  bloodPressureLogs: BloodPressureEntry[];
   tasks: Task[];
   aiInsight?: AiInsight;
   updatedAt: string;

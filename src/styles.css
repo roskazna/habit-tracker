@@ -155,6 +155,10 @@ h3 {
   grid-column: span 5;
 }
 
+.blood-pressure-panel {
+  grid-column: span 12;
+}
+
 .charts-panel,
 .ai-panel {
   grid-column: span 6;
@@ -408,6 +412,68 @@ h3 {
   gap: 8px;
 }
 
+.pressure-form {
+  display: grid;
+  grid-template-columns:
+    minmax(135px, 0.9fr)
+    minmax(110px, 0.7fr)
+    minmax(92px, 0.6fr)
+    minmax(92px, 0.6fr)
+    minmax(92px, 0.6fr)
+    minmax(180px, 1.3fr)
+    auto;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pressure-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.3fr) minmax(260px, 0.7fr);
+  gap: 12px;
+}
+
+.pressure-chart-card {
+  min-height: 300px;
+}
+
+.pressure-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.pressure-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid #243142;
+  border-radius: 8px;
+  background: #0f1620;
+  padding: 10px;
+}
+
+.pressure-row div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.pressure-row strong {
+  font-size: 1.1rem;
+}
+
+.pressure-row small,
+.pressure-row p {
+  color: #8b98aa;
+  line-height: 1.35;
+}
+
+.pressure-row p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .priority-high {
   border-left: 3px solid #f87171;
 }
@@ -529,6 +595,7 @@ h3 {
   .quote-panel,
   .habits-panel,
   .tasks-panel,
+  .blood-pressure-panel,
   .charts-panel,
   .ai-panel {
     grid-column: span 12;
@@ -536,6 +603,7 @@ h3 {
 
   .habit-add-form,
   .task-add-form,
+  .pressure-form,
   .edit-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -593,6 +661,8 @@ h3 {
 
   .habit-add-form,
   .task-add-form,
+  .pressure-form,
+  .pressure-layout,
   .edit-grid,
   .sync-grid,
   .charts-grid {
