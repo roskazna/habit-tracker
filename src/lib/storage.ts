@@ -6,7 +6,29 @@ const ACCESS_KEY = "personal-habit-tracker-access-key";
 
 export const normalizeState = (state: Partial<AppState>): AppState => {
   const initial = createInitialState();
-  const baseHabits = state.habits?.length ? state.habits : initial.habits;
+  const migratedHabitIds = new Set(["water-day", "screen-off"]);
+  const defaultHabitMap = new Map(
+    initial.habits.map((habit) => [habit.id, habit])
+  );
+  const baseHabits = (state.habits?.length ? state.habits : initial.habits)
+    .filter((habit) => habit.id !== "breathing")
+    .map((habit) => {
+      const updatedDefault = defaultHabitMap.get(habit.id);
+
+      if (!updatedDefault || !migratedHabitIds.has(habit.id)) {
+        return habit;
+      }
+
+      return {
+        ...habit,
+        title: updatedDefault.title,
+        category: updatedDefault.category,
+        cue: updatedDefault.cue,
+        target: updatedDefault.target,
+        healthContext: updatedDefault.healthContext,
+        order: updatedDefault.order
+      };
+    });
   const existingHabitIds = new Set(baseHabits.map((habit) => habit.id));
   const missingDefaultHabits = initial.habits.filter(
     (habit) => !existingHabitIds.has(habit.id)
@@ -15,9 +37,11 @@ export const normalizeState = (state: Partial<AppState>): AppState => {
   return {
     ...initial,
     ...state,
+    version: initial.version,
     habits: [...baseHabits, ...missingDefaultHabits].sort((a, b) => a.order - b.order),
     habitLogs: state.habitLogs ?? {},
     bloodPressureLogs: state.bloodPressureLogs ?? [],
+    dailyStepsLogs: state.dailyStepsLogs ?? [],
     tasks: state.tasks ?? []
   };
 };

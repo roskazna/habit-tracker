@@ -30,6 +30,11 @@ type TrackerState = {
     diastolic: number;
     pulse?: number;
   }>;
+  dailyStepsLogs?: Array<{
+    date: string;
+    steps: number;
+    note?: string;
+  }>;
   tasks?: Array<{
     title: string;
     category?: string;
@@ -141,6 +146,7 @@ const compactStateForAi = (state: TrackerState) => {
     habits,
     habitLogs,
     bloodPressure: (state.bloodPressureLogs ?? []).slice(-20),
+    dailySteps: (state.dailyStepsLogs ?? []).slice(-30),
     activeTasks: tasks
   };
 };

@@ -46,6 +46,14 @@ export interface BloodPressureEntry {
   recordedAt: string;
 }
 
+export interface DailyStepsEntry {
+  id: string;
+  date: string;
+  steps: number;
+  note?: string;
+  recordedAt: string;
+}
+
 export interface AiRecommendation {
   title: string;
   reason: string;
@@ -65,6 +73,7 @@ export interface AppState {
   habits: Habit[];
   habitLogs: Record<string, Record<string, boolean>>;
   bloodPressureLogs: BloodPressureEntry[];
+  dailyStepsLogs: DailyStepsEntry[];
   tasks: Task[];
   aiInsight?: AiInsight;
   updatedAt: string;

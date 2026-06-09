@@ -10,6 +10,7 @@ import {
   Download,
   Edit3,
   Filter,
+  Footprints,
   HeartPulse,
   Moon,
   Plus,
@@ -45,6 +46,7 @@ import { pullRemoteState, pushRemoteState, requestAiInsight } from "./lib/sync";
 import type {
   AppState,
   BloodPressureEntry,
+  DailyStepsEntry,
   Habit,
   HabitCategory,
   Task,
@@ -941,6 +943,196 @@ function BloodPressurePanel({ state, onChange }: BloodPressurePanelProps) {
   );
 }
 
+interface StepsPanelProps {
+  state: AppState;
+  onChange: (updater: (state: AppState) => AppState) => void;
+}
+
+function StepsPanel({ state, onChange }: StepsPanelProps) {
+  const [draft, setDraft] = useState({
+    date: getDateKey(),
+    steps: "",
+    note: ""
+  });
+
+  const entries = useMemo(
+    () =>
+      [...(state.dailyStepsLogs ?? [])].sort((a, b) =>
+        b.date.localeCompare(a.date)
+      ),
+    [state.dailyStepsLogs]
+  );
+  const chartEntries = [...entries]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-14);
+  const todayEntry = entries.find((entry) => entry.date === getDateKey());
+  const latest = entries[0];
+
+  const saveEntry = () => {
+    const steps = Number(draft.steps);
+
+    if (!Number.isInteger(steps) || steps < 0) {
+      return;
+    }
+
+    const date = draft.date || getDateKey();
+    const now = new Date().toISOString();
+
+    onChange((current) => {
+      const existing = (current.dailyStepsLogs ?? []).find(
+        (entry) => entry.date === date
+      );
+      const entry: DailyStepsEntry = {
+        id: existing?.id ?? createId(),
+        date,
+        steps,
+        note: draft.note.trim(),
+        recordedAt: now
+      };
+      const logs = existing
+        ? (current.dailyStepsLogs ?? []).map((item) =>
+            item.id === existing.id ? entry : item
+          )
+        : [...(current.dailyStepsLogs ?? []), entry];
+
+      return touch({
+        ...current,
+        dailyStepsLogs: logs
+      });
+    });
+
+    setDraft({
+      date: getDateKey(),
+      steps: "",
+      note: ""
+    });
+  };
+
+  const deleteEntry = (entryId: string) => {
+    onChange((current) =>
+      touch({
+        ...current,
+        dailyStepsLogs: (current.dailyStepsLogs ?? []).filter(
+          (entry) => entry.id !== entryId
+        )
+      })
+    );
+  };
+
+  return (
+    <section className="panel steps-panel">
+      <div className="section-heading">
+        <div>
+          <div className="panel-title">
+            <Footprints size={18} />
+            <span>Шаги</span>
+          </div>
+          <strong>
+            {(todayEntry?.steps ?? latest?.steps ?? 0).toLocaleString("ru-RU")}
+            {todayEntry ? " сегодня" : latest ? " последняя запись" : ""}
+          </strong>
+        </div>
+        <span className="metric-pill">{entries.length} дней</span>
+      </div>
+
+      <div className="steps-form">
+        <input
+          type="date"
+          value={draft.date}
+          onChange={(event) => setDraft({ ...draft, date: event.target.value })}
+          aria-label="Дата учета шагов"
+        />
+        <input
+          inputMode="numeric"
+          min="0"
+          step="1"
+          placeholder="Количество шагов"
+          type="number"
+          value={draft.steps}
+          onChange={(event) => setDraft({ ...draft, steps: event.target.value })}
+        />
+        <input
+          placeholder="Заметка"
+          value={draft.note}
+          onChange={(event) => setDraft({ ...draft, note: event.target.value })}
+        />
+        <button className="primary-button" type="button" onClick={saveEntry}>
+          <Save size={18} />
+          <span>Сохранить</span>
+        </button>
+      </div>
+
+      <div className="steps-layout">
+        <div className="chart-card steps-chart-card">
+          <strong>Шаги по дням</strong>
+          <div className="chart-box">
+            <Bar
+              data={{
+                labels: chartEntries.map((entry) => entry.date.slice(5)),
+                datasets: [
+                  {
+                    label: "Шаги",
+                    data: chartEntries.map((entry) => entry.steps),
+                    backgroundColor: "#2dd4bf",
+                    borderRadius: 7
+                  }
+                ]
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: "#c9d4e5",
+                      boxWidth: 10,
+                      boxHeight: 10
+                    }
+                  }
+                },
+                scales: {
+                  x: {
+                    ticks: { color: "#8b98aa" },
+                    grid: { color: "rgba(139, 152, 170, 0.12)" }
+                  },
+                  y: {
+                    beginAtZero: true,
+                    ticks: { color: "#8b98aa" },
+                    grid: { color: "rgba(139, 152, 170, 0.12)" }
+                  }
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="steps-list">
+          {entries.slice(0, 7).map((entry) => (
+            <article className="steps-row" key={entry.id}>
+              <div>
+                <strong>{entry.steps.toLocaleString("ru-RU")} шагов</strong>
+                <small>{entry.date}</small>
+                {entry.note ? <p>{entry.note}</p> : null}
+              </div>
+              <button
+                className="icon-button danger"
+                type="button"
+                title="Удалить"
+                onClick={() => deleteEntry(entry.id)}
+              >
+                <Trash2 size={16} />
+              </button>
+            </article>
+          ))}
+          {!entries.length ? (
+            <small className="muted">Записей шагов пока нет.</small>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ChartsPanel({ state }: { state: AppState }) {
   const today = getHabitCompletion(state);
   const week = getWeeklyHabitSeries(state);
@@ -1261,6 +1453,7 @@ export default function App() {
         <HabitsPanel state={state} todayKey={todayKey} onChange={updateState} />
         <TasksPanel state={state} filters={filters} onChange={updateState} onFiltersChange={setFilters} />
         <BloodPressurePanel state={state} onChange={updateState} />
+        <StepsPanel state={state} onChange={updateState} />
         <ChartsPanel state={state} />
         <AiPanel state={state} accessKey={accessKey} onChange={updateState} />
         <SyncPanel

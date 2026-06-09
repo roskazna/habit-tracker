@@ -155,7 +155,8 @@ h3 {
   grid-column: span 5;
 }
 
-.blood-pressure-panel {
+.blood-pressure-panel,
+.steps-panel {
   grid-column: span 12;
 }
 
@@ -400,11 +401,17 @@ h3 {
 }
 
 .task-add-form {
-  grid-template-columns: minmax(180px, 1.4fr) minmax(110px, 0.7fr) minmax(120px, 0.7fr) minmax(130px, 0.7fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.task-add-form > input:first-child,
+.task-add-form textarea,
+.task-add-form .primary-button {
+  grid-column: span 2;
 }
 
 .task-add-form textarea {
-  grid-column: span 3;
+  min-height: 64px;
 }
 
 .task-list {
@@ -470,6 +477,61 @@ h3 {
 }
 
 .pressure-row p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.steps-form {
+  display: grid;
+  grid-template-columns: minmax(135px, 0.8fr) minmax(170px, 0.9fr) minmax(220px, 1.5fr) auto;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.steps-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.3fr) minmax(260px, 0.7fr);
+  gap: 12px;
+}
+
+.steps-chart-card {
+  min-height: 300px;
+}
+
+.steps-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.steps-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid #243142;
+  border-radius: 8px;
+  background: #0f1620;
+  padding: 10px;
+}
+
+.steps-row div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.steps-row strong {
+  font-size: 1.05rem;
+}
+
+.steps-row small,
+.steps-row p {
+  color: #8b98aa;
+  line-height: 1.35;
+}
+
+.steps-row p {
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -596,6 +658,7 @@ h3 {
   .habits-panel,
   .tasks-panel,
   .blood-pressure-panel,
+  .steps-panel,
   .charts-panel,
   .ai-panel {
     grid-column: span 12;
@@ -604,13 +667,11 @@ h3 {
   .habit-add-form,
   .task-add-form,
   .pressure-form,
+  .steps-form,
   .edit-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .task-add-form textarea {
-    grid-column: span 2;
-  }
 }
 
 @media (max-width: 760px) {
@@ -663,6 +724,8 @@ h3 {
   .task-add-form,
   .pressure-form,
   .pressure-layout,
+  .steps-form,
+  .steps-layout,
   .edit-grid,
   .sync-grid,
   .charts-grid {
@@ -670,6 +733,8 @@ h3 {
   }
 
   .task-add-form textarea,
+  .task-add-form > input:first-child,
+  .task-add-form .primary-button,
   .chart-card.wide {
     grid-column: auto;
   }

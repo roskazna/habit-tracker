@@ -113,11 +113,31 @@ export const defaultHabits: Habit[] = [
     order: 80
   },
   {
-    id: "water-day",
-    title: "Вода в течение дня",
+    id: "back-bridge",
+    title: "Ортопедический мостик для спины",
+    category: "Активность",
+    cue: "После работы или длительного сидения",
+    target: "15 минут по инструкции к устройству",
+    healthContext: "Разгрузка спины с учетом рекомендаций врача",
+    enabled: true,
+    order: 85
+  },
+  {
+    id: "posture-corset",
+    title: "Корсет для осанки",
     category: "Здоровье",
-    cue: "До вечера",
-    target: "Поддерживать питьевой режим, ориентируясь на назначения врача",
+    cue: "В первой половине дня",
+    target: "Носить 2 часа по назначению специалиста",
+    healthContext: "Контроль осанки без превышения назначенного времени",
+    enabled: true,
+    order: 88
+  },
+  {
+    id: "water-day",
+    title: "Стакан воды каждый час",
+    category: "Здоровье",
+    cue: "Во время бодрствования",
+    target: "1 стакан каждый час, если врач не ограничивал жидкость",
     healthContext: "Гидратация при склонности к камням",
     enabled: true,
     order: 90
@@ -143,16 +163,6 @@ export const defaultHabits: Habit[] = [
     order: 110
   },
   {
-    id: "breathing",
-    title: "Дыхательная пауза",
-    category: "Вечер",
-    cue: "За час до сна",
-    target: "5-10 минут спокойного дыхания без задержек",
-    healthContext: "Снижение напряжения",
-    enabled: true,
-    order: 120
-  },
-  {
     id: "learning-video",
     title: "Посмотреть 1 учебное видео",
     category: "Вечер",
@@ -164,11 +174,11 @@ export const defaultHabits: Habit[] = [
   },
   {
     id: "screen-off",
-    title: "Экранный финиш",
+    title: "Чтение книги",
     category: "Вечер",
-    cue: "Перед сном",
-    target: "20 минут чтения или тихого дела вместо ленты",
-    healthContext: "Сон и восстановление",
+    cue: "Вечером",
+    target: "Читать 1 час",
+    healthContext: "Обучение, концентрация и отдых от экрана",
     enabled: true,
     order: 130
   },
@@ -185,10 +195,11 @@ export const defaultHabits: Habit[] = [
 ];
 
 export const createInitialState = (): AppState => ({
-  version: 1,
+  version: 2,
   habits: defaultHabits,
   habitLogs: {},
   bloodPressureLogs: [],
+  dailyStepsLogs: [],
   tasks: [
     {
       id: "task-first-review",
